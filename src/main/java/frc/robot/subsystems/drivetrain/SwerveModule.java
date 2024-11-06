@@ -3,9 +3,11 @@ package frc.robot.subsystems.drivetrain;
 // WPI imports
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 // Motor related imports
 import com.revrobotics.CANSparkMax;
+import com.revrobotics.CANSparkFlex;
 import com.revrobotics.CANSparkLowLevel;
 import com.revrobotics.CANSparkLowLevel.MotorType;
 import com.revrobotics.SparkPIDController;
@@ -28,7 +30,7 @@ public class SwerveModule extends SubsystemBase {
     private final int VEL_SLOT = 1;
     private int moduleNumber;
     private CANSparkMax turnMotor;
-    private CANSparkMax driveMotor;
+    private CANSparkFlex driveMotor;
     private SwerveModuleState state;
     private SparkPIDController driveController;
     private RelativeEncoder driveEncoder;
@@ -64,9 +66,9 @@ public class SwerveModule extends SubsystemBase {
         angleOffset = turningEncoderOffset;
 
         // Construct and configure the driving motor
-        driveMotor = new CANSparkMax(driveMotorID, MotorType.kBrushless);
+        driveMotor = new CANSparkFlex(driveMotorID, MotorType.kBrushless);
         driveMotor.restoreFactoryDefaults();
-        driveMotor.setSmartCurrentLimit(45);
+        driveMotor.setSmartCurrentLimit(40);
         driveMotor.getPIDController().setFF(0.0);
         driveMotor.getPIDController().setP(0.2);
         driveMotor.getPIDController().setI(0.0);
@@ -138,7 +140,7 @@ public class SwerveModule extends SubsystemBase {
 
     /** Set the turning motor's encoder to absolute zero */
     public void resetAngleToAbsolute() {
-        double angle = angleEncoder.getAbsolutePosition().getValueAsDouble() - angleOffset;
+        double angle = angleEncoder.getAbsolutePosition().getValueAsDouble() * 360 - angleOffset;
         turnEncoder.setPosition(angle);
     }
 
@@ -253,5 +255,13 @@ public class SwerveModule extends SubsystemBase {
             newAngle += 360;
 
         return newAngle;
+    }
+
+    @Override // Called every 20ms
+    public void periodic() {
+        // Prints the position of the swerve module heading in degrees
+        SmartDashboard.putNumber("Module " + moduleNumber + " Position", angleEncoder.getAbsolutePosition().getValueAsDouble() * 360);
+        // Prints the speed of the swerve module 
+        SmartDashboard.putNumber("Module " + moduleNumber + " Speed", getDriveMetersPerSecond());
     }
 }

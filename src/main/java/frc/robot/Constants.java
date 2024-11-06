@@ -21,35 +21,24 @@ public final class Constants {
         public static final int OPERATOR_PORT = 1;
     }
 
-    /** IDs used by the drivetrain.
-        3X for turning, 4X for driving, 5X for abs encoders. */
-        public static final class WestCoastIDs {
-            // Left Motor IDs
-            public static final int LEFT1_ID = 2;
-            public static final int LEFT2_ID = 3;
-            // Right Motor IDs
-            public static final int RIGHT1_ID = 6;
-            public static final int RIGHT2_ID = 7;
-        }
-
     /** IDs used by the swerve drivetrain.
         3X for turning, 4X for driving, 5X for abs encoders. */
     public static final class SwerveIDs {
         // Front left module
-        public static final int FL_DRIVE_ID = 40;
         public static final int FL_TURN_ID = 30;
+        public static final int FL_DRIVE_ID = 40;
         public static final int FL_ENCODER_ID = 50;
         // Front right module
-        public static final int FR_DRIVE_ID = 41;
         public static final int FR_TURN_ID = 31;
+        public static final int FR_DRIVE_ID = 41;
         public static final int FR_ENCODER_ID = 51;
         // Rear left module
-        public static final int RL_DRIVE_ID = 42;
         public static final int RL_TURN_ID = 32;
+        public static final int RL_DRIVE_ID = 42;
         public static final int RL_ENCODER_ID = 52;
         // Rear right module
-        public static final int RR_DRIVE_ID = 43;
         public static final int RR_TURN_ID = 33;
+        public static final int RR_DRIVE_ID = 43;
         public static final int RR_ENCODER_ID = 53;
     }
 
@@ -80,9 +69,9 @@ public final class Constants {
 
     /** Constants related to swerve calculations */
     public static final class SwerveConstants {
-        /** The distance between the left and right wheels */
+        /** The distance between the left and right wheels in inches */
         public static final double TRACK_WIDTH = Units.inchesToMeters(22);
-        /** The distance between the front and rear wheels */
+        /** The distance between the front and rear wheels in inches */
         public static final double WHEEL_BASE = Units.inchesToMeters(27);
 
         /** An array containing the position of each module as a {@link Translation2d} object */

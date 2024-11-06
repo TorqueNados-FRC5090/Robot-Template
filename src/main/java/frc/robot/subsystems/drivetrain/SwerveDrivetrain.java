@@ -13,7 +13,7 @@ import java.util.HashMap;
 // Gyro imports
 import com.kauailabs.navx.frc.AHRS;
 import edu.wpi.first.wpilibj.SPI;
-
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 // Import constants
 import frc.robot.Constants.SwerveConstants.ModulePosition;
 import frc.robot.Constants.SwerveConstants;
@@ -106,41 +106,54 @@ public class SwerveDrivetrain extends SubsystemBase {
         gyro.reset();
     }
 
+    /** Preprocess a drive instruction for driver controlled side-to-side movement
+     *  @param input The X input coming from a driver's joystick
+     *  @return The processed output ready to be sent to the drivetrain */
+    public double preprocessX(double input) {
+        double deadbanded = MathUtil.applyDeadband(input, .05);
+        double squared = -Math.signum(deadbanded) * Math.pow(deadbanded, 2);
+        double output = slewX.calculate(squared);
 
-    /** 
-     * Drives the robot
-     *  
+        return output;
+    }
+    /** Preprocess a drive instruction for driver controlled forward/back movement
+     *  @param input The Y input coming from a driver's joystick
+     *  @return The processed output ready to be sent to the drivetrain */
+    public double preprocessY(double input) {
+        double deadbanded = MathUtil.applyDeadband(input, .05);
+        double squared = -Math.signum(deadbanded) * Math.pow(deadbanded, 2);
+        double output = slewY.calculate(squared);
+
+        return output;
+    }
+    /** Preprocess a drive instruction for driver controlled rotation
+     *  @param input The rotation input coming from a driver's joystick
+     *  @return The processed output ready to be sent to the drivetrain */
+    public double preprocessRot(double input) {
+        double deadbanded = MathUtil.applyDeadband(input, .1);
+        double squared = -Math.signum(deadbanded) * Math.pow(deadbanded, 2);
+        double output = slewRot.calculate(squared);
+
+        return output;
+    }
+
+    /** Drives the robot. This is best used for driving with joysticks.
+     *  For programmatic drivetrain control, consider using sendDrive instead. 
+     * 
      * @param inputX The left/right translation instruction
      * @param inputY The forward/back translation instruction
      * @param inputRot The rotational instruction
     */
     public void drive(double inputX, double inputY, double inputRot) {
-        // If a translation input is between -.05 and .05, set it to 0
-        double deadbandedX = MathUtil.applyDeadband(Math.abs(inputX),
-            TRANSLATION_DEADBAND) * Math.signum(inputX);
-        double deadbandedY = MathUtil.applyDeadband(Math.abs(inputY),
-            TRANSLATION_DEADBAND) * Math.signum(inputY);
-
-        // If the rotation input is between -.1 and .1, set it to 0
-        double deadbandedRot = MathUtil.applyDeadband(Math.abs(inputRot),
-            ROTATION_DEADBAND) * Math.signum(inputRot);
-
-        // Square values after deadband while keeping original sign
-        deadbandedX = -Math.signum(deadbandedX) * Math.pow(deadbandedX, 2);
-        deadbandedY = -Math.signum(deadbandedY) * Math.pow(deadbandedY, 2);
-        deadbandedRot = -Math.signum(deadbandedRot) * Math.pow(deadbandedRot, 2);
-
-        // Apply a slew rate to the inputs, limiting the rate at which the robot changes speed
-        double slewedX = slewX.calculate(deadbandedX);
-        double slewedY = slewY.calculate(deadbandedY);
-        double slewedRot = slewRot.calculate(deadbandedRot);
+        double outX = preprocessX(inputX);
+        double outY = preprocessY(inputY);
+        double outRot = preprocessRot(inputRot);
 
         // Send the processed output to the drivetrain
-        sendDrive(slewedX, slewedY, slewedRot, true);
+        sendDrive(outX, outY, outRot, true);
     }
 
-    /** 
-     * Sends instructions to the motors that drive the robot
+    /** Sends driving instructions to the motors that drive the robot.
      *  
      * @param translationX The left/right translation instruction
      * @param translationY The forward/back translation instruction
@@ -148,7 +161,7 @@ public class SwerveDrivetrain extends SubsystemBase {
      * @param isOpenLoop True to control the driving motor via %power.
      *                   False to control the driving motor via velocity-based PID.
     */
-    private void sendDrive( double translationX, double translationY, double rotation, boolean isOpenLoop ) {
+    public void sendDrive( double translationX, double translationY, double rotation, boolean isOpenLoop ) {
         // Convert inputs from % to m/sec
         translationY *= MAX_TRANSLATION_SPEED;
         translationX *= MAX_TRANSLATION_SPEED;
@@ -173,6 +186,19 @@ public class SwerveDrivetrain extends SubsystemBase {
             module.setDesiredState(moduleStates[module.getModuleNumber()], isOpenLoop);
     }
 
+    /** Used by pathplanner to control the robot in robotspace */
+    public void driveRobotRelative(ChassisSpeeds speeds) { 
+        // Convert ChassisSpeed instructions to useable SwerveModuleStates
+        SwerveModuleState[] moduleStates = SWERVE_KINEMATICS.toSwerveModuleStates(speeds);
+
+        // Normalize output if any of the modules would be instructed to go faster than possible
+        SwerveDriveKinematics.desaturateWheelSpeeds(moduleStates, MAX_TRANSLATION_SPEED);
+
+        // Send instructions to each module
+        for (SwerveModule module : swerveModules.values())
+            module.setDesiredState(moduleStates[module.getModuleNumber()], true);
+    }
+
     // Misc getters
     /** @return The current direction the robot is facing in degrees */
     public double getHeadingDegrees() { return -Math.IEEEremainder(gyro.getAngle(), 360); }
@@ -188,6 +214,8 @@ public class SwerveDrivetrain extends SubsystemBase {
     /** @param position The {@link ModulePosition position} of the module
      *  @return The {@link SwerveModule swerve module} at that position */
     public SwerveModule getSwerveModule(ModulePosition position) { return swerveModules.get(ModulePosition.FRONT_LEFT); }
+    /** @return A ChassisSpeeds object describing the motion of the robot */
+    public ChassisSpeeds getChassisSpeeds() { return SWERVE_KINEMATICS.toChassisSpeeds(getModuleStates()); }
     
     // Methods related to field orientation
     /** @return Whether or not the robot is in field oriented mode */
@@ -284,5 +312,9 @@ public class SwerveDrivetrain extends SubsystemBase {
     @Override // Called every 20ms
     public void periodic() {
         updateOdometry();
+        // Prints the current heading in degrees
+        SmartDashboard.putNumber("Heading in Degrees", getHeadingDegrees());
+        // Prints if the robot is in field or robot
+        SmartDashboard.putBoolean("Field Centric", isFieldCentric());
     }
 }

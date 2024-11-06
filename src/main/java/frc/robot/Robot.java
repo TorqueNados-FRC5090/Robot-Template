@@ -24,7 +24,7 @@ public class Robot extends TimedRobot {
         // Start the camera feed
         CameraServer.startAutomaticCapture();
 
-        // Construct objects
+        // Construct the robot container
         robotContainer = new RobotContainer();
     }
 
@@ -40,7 +40,7 @@ public class Robot extends TimedRobot {
 
     // This function is called every 20ms during auton
     @Override
-    public void autonomousPeriodic() { }
+    public void autonomousPeriodic() {}
     
     // This function is called once at the start of teleop
     @Override
@@ -52,8 +52,7 @@ public class Robot extends TimedRobot {
 
     // This function is called every 20ms during teleop
     @Override
-    public void teleopPeriodic() {
-    }
+    public void teleopPeriodic() {}
 
     // This function is called every 20ms while the robot is enabled
     @Override
@@ -63,6 +62,5 @@ public class Robot extends TimedRobot {
     }
 
     @Override
-    public void testPeriodic() {
-    }
+    public void testPeriodic() {}
 }
