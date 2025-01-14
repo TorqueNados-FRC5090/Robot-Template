@@ -45,7 +45,10 @@ public class RobotContainer {
     }
 
     /** Configures a set of control bindings for the robot's operator */
-    private void setOperatorControls() {}
+    private void setOperatorControls() {
+        // Runs the auton command as an example binding
+        operatorController.a().whileTrue(getAutonomousCommand());
+    }
         
     
     /** @return Whether the robot is on the red alliance or not */

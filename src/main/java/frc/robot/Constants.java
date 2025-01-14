@@ -1,7 +1,11 @@
 package frc.robot;
+import com.pathplanner.lib.config.ModuleConfig;
+import com.pathplanner.lib.config.RobotConfig;
+
 // Imports
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
+import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
 
@@ -56,8 +60,8 @@ public final class Constants {
     public static final class SwerveInversions {
         // Whether each driving motor should be inverted
         public static final boolean INVERT_FL_DRIVE = false;
-        public static final boolean INVERT_RL_DRIVE = false;
         public static final boolean INVERT_FR_DRIVE = true;
+        public static final boolean INVERT_RL_DRIVE = false;
         public static final boolean INVERT_RR_DRIVE = true;
 
         // Whether each turning motor should be inverted
@@ -76,10 +80,10 @@ public final class Constants {
 
         /** An array containing the position of each module as a {@link Translation2d} object */
         public static final Translation2d[] MODULE_TRANSLATIONS = {
-            new Translation2d(WHEEL_BASE / 2, TRACK_WIDTH / 2),
-            new Translation2d(WHEEL_BASE / 2, -TRACK_WIDTH / 2),
-            new Translation2d(-WHEEL_BASE / 2, TRACK_WIDTH / 2),
-            new Translation2d(-WHEEL_BASE / 2, -TRACK_WIDTH / 2)
+            new Translation2d(-WHEEL_BASE / 2, TRACK_WIDTH / 2),  // FL
+            new Translation2d(WHEEL_BASE / 2, TRACK_WIDTH / 2),   // FR
+            new Translation2d(-WHEEL_BASE / 2, -TRACK_WIDTH / 2), // RL
+            new Translation2d(WHEEL_BASE / 2, -TRACK_WIDTH / 2)   // RR
         };
 
         // Kinematics are used to calculate how each module needs to move
@@ -126,6 +130,11 @@ public final class Constants {
             REAR_LEFT,
             REAR_RIGHT
         }
+
+        // Values with 0 are unknown and should be replaced with the proper values for your robot
+        private static final DCMotor PP_DRIVE_MOTOR = new DCMotor(12.6, 0, 0, 0, 0, 1);
+        private static final ModuleConfig PP_MODULE_CONFIG = new ModuleConfig(ModuleConstants.WHEEL_DIAMETER / 2, MAX_TRANSLATION_SPEED, 1, PP_DRIVE_MOTOR, 40, 1);
+        public static final RobotConfig PP_CONFIG = new RobotConfig(0, 0, PP_MODULE_CONFIG, MODULE_TRANSLATIONS);
     }
 
   public static final class DriveConstants {

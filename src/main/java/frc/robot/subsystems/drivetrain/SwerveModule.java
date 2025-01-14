@@ -6,11 +6,16 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 // Motor related imports
-import com.revrobotics.CANSparkMax;
-import com.revrobotics.CANSparkFlex;
-import com.revrobotics.CANSparkLowLevel;
-import com.revrobotics.CANSparkLowLevel.MotorType;
-import com.revrobotics.SparkPIDController;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkBase.PersistMode;
+import com.revrobotics.spark.SparkBase.ResetMode;
+import com.revrobotics.spark.SparkFlex;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.config.SparkFlexConfig;
+import com.revrobotics.spark.config.SparkMaxConfig;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+import com.revrobotics.spark.ClosedLoopSlot;
+import com.revrobotics.spark.SparkClosedLoopController;
 import com.revrobotics.RelativeEncoder;
 import com.ctre.phoenix6.hardware.CANcoder;
 
@@ -27,12 +32,11 @@ import static frc.robot.Constants.SwerveConstants.MAX_TRANSLATION_SPEED;
 
 /** This class represents a single swerve module */
 public class SwerveModule extends SubsystemBase {
-    private final int VEL_SLOT = 1;
     private int moduleNumber;
-    private CANSparkMax turnMotor;
-    private CANSparkFlex driveMotor;
+    private SparkMax turnMotor;
+    private SparkFlex driveMotor;
     private SwerveModuleState state;
-    private SparkPIDController driveController;
+    private SparkClosedLoopController driveController;
     private RelativeEncoder driveEncoder;
     private RelativeEncoder turnEncoder;
     private PIDController turnController;
@@ -66,53 +70,60 @@ public class SwerveModule extends SubsystemBase {
         angleOffset = turningEncoderOffset;
 
         // Construct and configure the driving motor
-        driveMotor = new CANSparkFlex(driveMotorID, MotorType.kBrushless);
-        driveMotor.restoreFactoryDefaults();
-        driveMotor.setSmartCurrentLimit(40);
-        driveMotor.getPIDController().setFF(0.0);
-        driveMotor.getPIDController().setP(0.2);
-        driveMotor.getPIDController().setI(0.0);
-        driveMotor.setInverted(driveMotorInverted);
-        driveMotor.setPeriodicFramePeriod(CANSparkLowLevel.PeriodicFrame.kStatus0, 100);
-        driveMotor.setPeriodicFramePeriod(CANSparkLowLevel.PeriodicFrame.kStatus1, 20);
-        driveMotor.setPeriodicFramePeriod(CANSparkLowLevel.PeriodicFrame.kStatus2, 20);
-        driveMotor.enableVoltageCompensation(12.6);
-        driveMotor.setIdleMode(CANSparkMax.IdleMode.kBrake);
-
-        // Initialize the driving motor's encoder
+        driveMotor = new SparkFlex(driveMotorID, MotorType.kBrushless);
         driveEncoder = driveMotor.getEncoder();
-        driveEncoder.setPositionConversionFactor(DRIVE_REVS_TO_M);
-        driveEncoder.setVelocityConversionFactor(DRIVE_RPM_TO_MPS);
+        driveController = driveMotor.getClosedLoopController();
+        SparkFlexConfig driveConfig = new SparkFlexConfig();
 
-        // Initialize the driving motor's PID controller
-        driveController = driveMotor.getPIDController();
+        driveConfig
+            .smartCurrentLimit(40)
+            .inverted(driveMotorInverted)
+            .idleMode(IdleMode.kBrake)
+            .voltageCompensation(12.6);
+        driveConfig.encoder
+            .positionConversionFactor(DRIVE_REVS_TO_M)
+            .velocityConversionFactor(DRIVE_RPM_TO_MPS);
+        driveConfig.closedLoop
+            .pid(.2, 0, 0);
+        driveConfig.signals
+            .appliedOutputPeriodMs(100)
+            .primaryEncoderVelocityPeriodMs(20)
+            .primaryEncoderPositionPeriodMs(20)
+            .warningsPeriodMs(500)
+            .motorTemperaturePeriodMs(500)
+            .busVoltagePeriodMs(500);
+
+        driveMotor.configure(driveConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+
+
 
         // Construct and configure the turning motor
-        turnMotor = new CANSparkMax(turnMotorID, MotorType.kBrushless);
-        turnMotor.restoreFactoryDefaults();
-        turnMotor.setSmartCurrentLimit(20);
-        turnMotor.getPIDController().setFF(0.0);
-        turnMotor.getPIDController().setP(0.2);
-        turnMotor.getPIDController().setI(0.0);
-        turnMotor.setInverted(turningMotorInverted);
-        turnMotor.setPeriodicFramePeriod(CANSparkLowLevel.PeriodicFrame.kStatus0, 100);
-        turnMotor.setPeriodicFramePeriod(CANSparkLowLevel.PeriodicFrame.kStatus1, 20);
-        turnMotor.setPeriodicFramePeriod(CANSparkLowLevel.PeriodicFrame.kStatus2, 20);
-        turnMotor.enableVoltageCompensation(12.6);
-        turnMotor.setIdleMode(CANSparkMax.IdleMode.kBrake);
-
-        // Initialize the driving motor's encoder
+        turnMotor = new SparkMax(turnMotorID, MotorType.kBrushless);
         turnEncoder = turnMotor.getEncoder();
-        turnEncoder.setPositionConversionFactor(TURNING_REVS_TO_DEG);
-        turnEncoder.setVelocityConversionFactor(TURNING_REVS_TO_DEG / 60);
-
-        // Construct a PID controller to help turn the module to a direction
+        // The turning motor uses a WPILib PID controller, rather than a SPARK-included one
         turnController = new PIDController(.007, .00175, .0000625);
+        SparkMaxConfig turnConfig = new SparkMaxConfig();
+
+        turnConfig
+            .smartCurrentLimit(20)
+            .inverted(turningMotorInverted)
+            .idleMode(IdleMode.kBrake)
+            .voltageCompensation(12.6);
+        turnConfig.encoder
+            .positionConversionFactor(TURNING_REVS_TO_DEG)
+            .velocityConversionFactor(TURNING_REVS_TO_DEG / 60);
+        turnConfig.signals
+            .appliedOutputPeriodMs(100)
+            .primaryEncoderVelocityPeriodMs(20)
+            .primaryEncoderPositionPeriodMs(20)
+            .warningsPeriodMs(500)
+            .motorTemperaturePeriodMs(500)
+            .busVoltagePeriodMs(500);
+
+        turnMotor.configure(turnConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
         // Construct and initialize the absolute encoder
         angleEncoder = new CANcoder(absoluteEncoderID);
-
-        // Point the module forward
         resetAngleToAbsolute();
     }
 
@@ -178,11 +189,10 @@ public class SwerveModule extends SubsystemBase {
         } 
         else {
             // Set the driving motor's PID controller to the desired speed
-            int DRIVE_PID_SLOT = VEL_SLOT;
             driveController.setReference(
                 state.speedMetersPerSecond,
-                CANSparkMax.ControlType.kVelocity,
-                DRIVE_PID_SLOT
+                SparkMax.ControlType.kVelocity,
+                ClosedLoopSlot.kSlot1
             );
         }
 
