@@ -31,7 +31,7 @@ public class SwerveDriveCommand extends Command {
         this.inputY = translationInputY;
         this.inputRot = rotationInput;
         
-        // Tell the CommandBase that this command uses the drivetrain
+        // Tell the Command that this command uses the drivetrain
         addRequirements(drivetrain);
     }
 

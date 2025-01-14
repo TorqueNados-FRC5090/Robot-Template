@@ -1,13 +1,11 @@
 package frc.robot.commands;
 
-import static frc.robot.Constants.SwerveConstants.MAX_TRANSLATION_SPEED;
-import static frc.robot.Constants.SwerveConstants.ModuleConstants.WHEEL_DIAMETER;
+import static frc.robot.Constants.SwerveConstants.PP_CONFIG;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
-import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
-import com.pathplanner.lib.util.PIDConstants;
-import com.pathplanner.lib.util.ReplanningConfig;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -24,18 +22,16 @@ public class AutonContainer {
         this.drivetrain = robot.drivetrain;
         registerNamedCommands();
 
-        AutoBuilder.configureHolonomic(
+        AutoBuilder.configure(
             drivetrain::getPoseMeters, 
             drivetrain::setOdometry,
             drivetrain::getChassisSpeeds,
             drivetrain::driveRobotRelative,
-            new HolonomicPathFollowerConfig( // HolonomicPathFollowerConfig, this should likely live in your Constants class
+            new PPHolonomicDriveController( // HolonomicPathFollowerConfig, this should likely live in your Constants class
                     new PIDConstants(5.0, 0.0, 0.0), // Translation PID constants
-                    new PIDConstants(5.0, 0.0, 0.0), // Rotation PID constants
-                    MAX_TRANSLATION_SPEED, // Max module speed, in m/s
-                    WHEEL_DIAMETER, // Drive base radius in meters. Distance from robot center to furthest module.
-                    new ReplanningConfig() // Default path replanning config. See the API for the options here
+                    new PIDConstants(5.0, 0.0, 0.0) // Rotation PID constants
             ),
+            PP_CONFIG,
             () -> robot.onRedAlliance(),
             drivetrain);
     }
