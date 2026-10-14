@@ -2,7 +2,7 @@ package frc.robot.wrappers;
 
 import edu.wpi.first.wpilibj.DigitalOutput;
 
-/** Wraps {@link DigitalInput} to represent a laser detector. */ 
+/** WHAT THIS FILE IS: a simple on/off LED (or any light/relay) plugged into a roboRIO DIO port. Wraps {@link DigitalOutput}. */
 public class DigitalLED {
     private DigitalOutput LED;
 

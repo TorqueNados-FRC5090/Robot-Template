@@ -14,6 +14,10 @@ import frc.robot.LimelightHelpers.PoseEstimate;
 import frc.robot.RobotLog;
 
 /**
+ * WHAT THIS FILE IS: the vision subsystem. The Limelight sees AprilTags (the square barcodes on the field), works out
+ * where the robot is from them, and this class passes that to the drivetrain to fix its position.
+ * Wheel odometry alone slowly drifts (wheels slip, robots get pushed); vision pulls it back to the truth.
+ * <p>
  * Feeds every Limelight's AprilTag pose into the drivetrain's pose estimator.
  * <p>
  * Enabled: MegaTag2. It takes the heading from the Pigeon and only corrects X/Y, which keeps the

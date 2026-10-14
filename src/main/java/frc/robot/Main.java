@@ -6,6 +6,10 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj.RobotBase;
 
+/**
+ * WHAT THIS FILE IS: the very first thing that runs. It just starts {@link Robot}.
+ * You should never need to change this file.
+ */
 public final class Main {
   private Main() {}
 

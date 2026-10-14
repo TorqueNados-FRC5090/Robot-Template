@@ -16,7 +16,16 @@ import frc.robot.RobotContainer;
 import frc.robot.RobotLog;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 
-/** A container that stores various procedures for the autonomous portion of the game */
+/**
+ * WHAT THIS FILE IS: everything for autonomous (the first 15-20 seconds when the robot drives itself).
+ * <ul>
+ *   <li>Connects PathPlanner to the drivetrain ({@code AutoBuilder.configure}).</li>
+ *   <li>Registers "named commands": robot actions (intake, shoot...) that PathPlanner autos can call by name.</li>
+ *   <li>Builds the auto chooser (the dropdown on the dashboard the drive team picks before a match).</li>
+ * </ul>
+ * Paths and autos themselves are drawn in the PathPlanner app and saved in src/main/deploy/pathplanner/.
+ * To add an auto: draw it in PathPlanner, then add one {@code chooser.addOption(...)} line in buildAutonChooser().
+ */
 public class AutonContainer {
     private final RobotContainer robotContainer;
     private final CommandSwerveDrivetrain drivetrain;
@@ -62,7 +71,7 @@ public class AutonContainer {
     private void registerNamedCommands() {
         register("Do Nothing", doNothing());
         // Lock the wheels in an X at the end of an auto so we don't get pushed
-        register("X Brake", drivetrain.applyRequest(() -> new SwerveRequest.SwerveDriveBrake()).withTimeout(0.5));
+        register("X Brake", drivetrain.applyRequest(() -> new SwerveRequest.SwerveDriveBrake()).withTimeout(AutoConstants.kXBrakeSeconds));
     }
 
     /** Registers a named command and logs an event each time an auto runs it */

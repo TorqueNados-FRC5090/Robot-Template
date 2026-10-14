@@ -26,6 +26,17 @@ import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.Vision;
 
+/**
+ * WHAT THIS FILE IS: where the robot is put together.
+ * <ul>
+ *   <li>Makes every subsystem (drivetrain, vision, and later your mechanisms). Each one exists ONCE, here.</li>
+ *   <li>Binds controller buttons to commands in {@link #configureBindings()}. Want to know what a button does? Look there.</li>
+ *   <li>Sets each subsystem's DEFAULT command (what it does when nothing else is using it, e.g. drive with the sticks).</li>
+ *   <li>Builds the auto chooser shown on the dashboard.</li>
+ * </ul>
+ * Button cheat sheet: {@code whileTrue} = runs while held, stops on release. {@code onTrue} = starts once on press.
+ * {@code toggleOnTrue} = press to start, press again to stop.
+ */
 public class RobotContainer {
     // --- CONTROLLERS ---
     private final CommandXboxController driver = new CommandXboxController(OperatorConstants.kDriverPort);
@@ -68,7 +79,7 @@ public class RobotContainer {
         // DRIVE: left stick moves, right stick turns. Hold the right trigger for slow mode.
         drivetrain.setDefaultCommand(
             drivetrain.applyRequest(() -> {
-                double multiplier = driver.getRightTriggerAxis() > 0.5 ? OperatorConstants.kSlowModeMultiplier : 1.0;
+                double multiplier = driver.getRightTriggerAxis() > OperatorConstants.kSlowModeTrigger ? OperatorConstants.kSlowModeMultiplier : 1.0;
                 return drive.withVelocityX(-driver.getLeftY() * kMaxSpeed * multiplier)
                             .withVelocityY(-driver.getLeftX() * kMaxSpeed * multiplier)
                             .withRotationalRate(-driver.getRightX() * kMaxAngularRate * multiplier);

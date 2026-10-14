@@ -20,6 +20,11 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
 
+/**
+ * WHAT THIS FILE IS: publishes the swerve drive's state (pose, speeds, each module's angle and speed) to
+ * NetworkTables and the CTRE log, so you can see it in AdvantageScope/Elastic. Written by CTRE's Tuner X;
+ * you normally don't need to change it.
+ */
 public class Telemetry {
     private final double MaxSpeed;
 

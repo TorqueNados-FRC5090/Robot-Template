@@ -1,4 +1,6 @@
 //LimelightHelpers v1.14 (REQUIRES LLOS 2026.0 OR LATER)
+// WHAT THIS FILE IS: Limelight's official helper library, copied from github.com/LimelightVision/limelightlib-wpijava.
+// DON'T EDIT IT. To update, replace the whole file with the newest version. Our vision code is in subsystems/Vision.java.
 
 package frc.robot;
 

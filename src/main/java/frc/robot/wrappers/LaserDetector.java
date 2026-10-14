@@ -2,7 +2,7 @@ package frc.robot.wrappers;
 
 import edu.wpi.first.wpilibj.DigitalInput;
 
-/** Wraps {@link DigitalInput} to represent a laser detector */
+/** WHAT THIS FILE IS: a laser/beam-break sensor on a roboRIO DIO port (e.g. "is there a game piece in the intake?"). Wraps {@link DigitalInput}. */
 public class LaserDetector {
     private DigitalInput laser;
 

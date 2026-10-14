@@ -2,7 +2,7 @@ package frc.robot.wrappers;
 
 import edu.wpi.first.wpilibj.DigitalInput;
 
-/** Wraps {@link DigitalInput} to represent a laser detector */
+/** WHAT THIS FILE IS: a limit switch on a roboRIO DIO port (e.g. "has the elevator reached the bottom?"). Wraps {@link DigitalInput}. */
 public class LimitSwitch {
     private DigitalInput limSwitch;
     private boolean inverted;

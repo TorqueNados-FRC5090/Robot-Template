@@ -24,6 +24,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
 /**
+ * WHAT THIS FILE IS: everything the robot records to the USB stick, so you can find out what happened after a match.
  * Season-independent logging. Copy this file into next year's project, call {@link #start} first thing in
  * Robot() and {@link #periodic} every loop. See LOGGING.md for what to log each season and why.
  *
