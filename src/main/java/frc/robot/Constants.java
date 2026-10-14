@@ -23,6 +23,8 @@ import frc.robot.generated.TunerConstants;
  *   <li>Names start with {@code k} (for "konstant"), e.g. {@code kMaxSpeed}. That's how you can tell a constant apart.</li>
  *   <li>The swerve drive's own numbers (module CAN IDs, encoder offsets, gear ratios, PID) are in
  *       {@code generated/TunerConstants.java} because Phoenix Tuner X writes that file for us.</li>
+ *   <li>Names must say what the thing is, with units: {@code kIntakeDeployedRotations}, not {@code kThing2}.
+ *       Our code is read by judges, alumni and other teams; keep every name professional (STUDENT-GUIDE section 8).</li>
  * </ul>
  * Use them with e.g. {@code Constants.DriveConstants.kMaxSpeed}, or add
  * {@code import static frc.robot.Constants.DriveConstants.*;} at the top of a file to just write {@code kMaxSpeed}.
@@ -150,10 +152,57 @@ public final class Constants {
 
     public static final class VisionConstants {
         /**
-         * Names of every Limelight on the robot, exactly as set in each Limelight's web page (http://limelight.local:5801).
-         * Add or remove names here to add or remove cameras. Each one feeds the pose estimator.
+         * Where a Limelight is mounted, measured from the CENTER of the robot on the floor.
+         * Same numbers as "Robot Space Pose" on the Limelight's web page.
+         *
+         * @param forwardM Meters forward (+) or backward (-) of the robot center
+         * @param sideM    Meters left (+) or right (-) of the robot center
+         * @param upM      Meters up from the floor
+         * @param rollDeg  Tilt sideways, degrees (usually 0)
+         * @param pitchDeg Tilt up (+) or down (-), degrees. A camera aimed slightly up at the tags is usually +10 to +30.
+         * @param yawDeg   Which way it faces, degrees: 0 = front, 180 = back, +90 = left, -90 = right
          */
-        public static final String[] kCameraNames = { "limelight" };
+        public record CameraPose(double forwardM, double sideM, double upM, double rollDeg, double pitchDeg, double yawDeg) {}
+
+        /**
+         * One Limelight on the robot.
+         *
+         * @param name     The Limelight's hostname, exactly as set on its web page (e.g. "limelight-front")
+         * @param pipeline Pipeline to run (0-9), or null to leave whatever the Limelight is set to
+         * @param pose     Where it's mounted, or null to use the Robot Space Pose saved on the Limelight's web page
+         */
+        public record Camera(String name, Integer pipeline, CameraPose pose) {
+            /** Mount position and pipeline set on the Limelight's web page. Code doesn't override anything. */
+            public static Camera configuredOnLimelight(String name) {
+                return new Camera(name, null, null);
+            }
+
+            /** Mount position and pipeline set here in code. Overrides what's on the Limelight's web page. */
+            public static Camera configuredInCode(String name, int pipeline, CameraPose pose) {
+                return new Camera(name, pipeline, pose);
+            }
+        }
+
+        /**
+         * Every Limelight on the robot. Each one feeds the robot's position. See STUDENT-GUIDE.md "Add another Limelight".
+         * <p>
+         * Team standard: set the mount position + pipeline HERE (configuredInCode), so it's saved in git and comes back
+         * automatically if a camera is swapped or reflashed. Image settings (exposure, resolution, tag family, field
+         * map) stay on the Limelight's web page.
+         */
+        public static final Camera[] kCameras = {
+            // Hephaestus's camera. Its mount position hasn't been measured into code yet, so it uses the one saved on
+            // the Limelight. Once measured, switch to configuredInCode like the example below.
+            Camera.configuredOnLimelight("limelight"),
+
+            // EXAMPLE second camera on the back of the robot, 30 cm behind center, 25 cm up, tilted up 20 deg, facing backward:
+            // Camera.configuredInCode("limelight-back", 0, new CameraPose(-0.30, 0.0, 0.25, 0, 20, 180)),
+        };
+
+        /** A Limelight can take ~30 s to boot; don't log it as disconnected before then */
+        public static final double kBootGraceSeconds = 30.0;
+        /** A Limelight is "disconnected" if its heartbeat hasn't changed for this long, seconds */
+        public static final double kHeartbeatTimeoutSeconds = 0.5;
 
         /** Ignore vision while spinning faster than this (rotations per second); the images blur and lag. */
         public static final double kMaxSpinRps = 2.0;

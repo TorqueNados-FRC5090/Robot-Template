@@ -45,6 +45,7 @@ src/main/deploy/pathplanner/   Paths and autos drawn in the PathPlanner app
 vendordeps/                    Libraries (Phoenix 6, PathPlanner). Manage with WPILib → "Manage Vendor Libraries".
 README.md                      Short overview + setting up a new robot
 LOGGING.md                     What we log and why
+limelight/                     Backups of the Limelight pipeline files
 ```
 
 ---
@@ -118,8 +119,41 @@ Xbox buttons: `a() b() x() y() leftBumper() rightBumper() leftTrigger() rightTri
 4. Test it in simulation before the real robot.
 
 ### Add another Limelight
-Name it on its web page, set its **Robot Space Pose** (where it's mounted, measured from the robot center), then add
-the name to `Constants.VisionConstants.kCameraNames`.
+You can have as many as you want. Each one adds its own position measurement, and they all work the same way.
+
+**On the Limelight** (plug it into the robot's network, open `http://limelight.local:5801`; with two plugged in,
+set them up one at a time, because both start with that same name):
+1. **Settings → Hostname:** give it a unique name that starts with `limelight-`, e.g. `limelight-front`,
+   `limelight-back`. This name is how the code finds it, so two cameras can never share one.
+2. **Settings → IP address:** set a unique static IP. Limelight recommends `10.TE.AM.11` to `.19`, so for 5090: `10.50.90.11` for the first, `.12` for the second, and so on.
+3. **Pipeline:** set up an AprilTag pipeline (the image settings: exposure, resolution, tag family, field map).
+   Then **export the pipeline file** and save it in this repo's `limelight/` folder as a backup.
+4. Update the firmware (LLOS) to the 2026 version if it's old (Limelight Hardware Manager).
+
+**In the code** (`Constants.java` → `VisionConstants.kCameras`):
+
+5. Measure where the camera is mounted, from the **center of the robot on the floor**:
+   forward/back (m), left/right (m), height (m), tilt up/down (deg), which way it faces (deg).
+6. Add one line:
+   ```java
+   Camera.configuredInCode("limelight-back", 0, new CameraPose(-0.30, 0.0, 0.25, 0, 20, 180)),
+   ```
+   = named `limelight-back`, pipeline 0, 30 cm behind center, centered, 25 cm up, tilted up 20°, facing backward.
+7. Deploy. On the dashboard check `Vision/limelight-back/Connected`. Then put the robot where it can see a tag, and
+   check that `Vision/limelight-back/Correction (m)` is small and the robot appears in the right place on the field.
+   If the pose is way off or mirrored, the mount numbers are wrong. The usual mistake is the yaw sign or using cm instead of m.
+
+#### What goes in code vs. on the Limelight?
+| Setting | Where | Why |
+|---|---|---|
+| Camera name list | **Code** (`kCameras`) | The code needs to know which cameras to read. |
+| Mount position (Robot Space Pose) | **Code** (`configuredInCode`) | It's part of the robot, so it belongs in git. It comes back automatically if a camera is swapped or reflashed, and changes show up in reviews. Code **overrides** the web page. |
+| Which pipeline to run | **Code** | Same reason. |
+| Image settings (exposure, resolution, tag family, field map, crop) | **Limelight web page** | You tune these while watching the live camera feed. Back up the exported pipeline file in `limelight/`. |
+| Hostname and IP address | **Limelight web page** | The camera needs them before the code can even talk to it. |
+
+`Camera.configuredOnLimelight("name")` means "use whatever's saved on the camera". It's only for a camera whose
+mount position hasn't been measured into code yet.
 
 ### See what happened in a match
 Plug the USB stick into a laptop and open the `.wpilog` in AdvantageScope. See `LOGGING.md`.
@@ -164,7 +198,36 @@ Plug the USB stick into a laptop and open the `.wpilog` in AdvantageScope. See `
 
 ---
 
-## 8. Team rules for code
+## 8. Naming: keep it professional
+
+Our code is read by judges, mentors, alumni and other teams (it's public on GitHub, and award judges ask about it).
+**Every name should tell a stranger exactly what the thing is.** No jokes, nicknames, memes or inside references
+in class names, method names, variables, commands, dashboard keys, branch names or commit messages.
+
+| Instead of | Write |
+|---|---|
+| `Yeeter`, `BigBoi` | `Shooter`, `Elevator` |
+| `doTheThing()`, `stuff()` | `feedWhenReady()`, `runIntake()` |
+| `bob`, `m1`, `motor2` | `leftFlywheelMotor`, `pivotMotor` |
+| `Constants.x`, `val = 16.1` | `IntakeConstants.kDeployedPositionRotations = 16.1` |
+| Dashboard `"111 pose X"`, `"aaa"` | `"Drive/Pose X (m)"` |
+| Branch `fun-stuff`, `my-branch` | `intake-tuning`, `auto-left-two-piece` |
+| Commit `"fixed it"`, `"lol"` | `"Lower intake current limit to 30 A (was tripping breaker)"` |
+
+Naming style (standard Java, so everyone can read it):
+- **Classes**: `PascalCase` nouns: `Intake`, `ShooterConstants`, `AutonContainer`.
+- **Methods**: `camelCase` verbs: `setSpeed()`, `getPose()`, `isAtSetpoint()` (booleans start with `is`/`has`/`at`).
+- **Commands** (methods that return a Command): say the action: `intakeCommand()`, `driveToScoringPose()`.
+- **Constants**: `k` + `PascalCase` + **units** where it's a number: `kMaxSpeedMetersPerSecond`, `kIntakeRps`.
+- **Member variables**: `m_` + `camelCase` is fine (`m_motor`), just be consistent within a file.
+- **Dashboard keys**: `Subsystem/Thing (units)`, e.g. `Shooter/Velocity (RPS)`. The same names end up in the logs.
+- **No abbreviations nobody else knows.** `ll` is fine for Limelight; `tgtDstFltr` is not.
+
+Code reviews (pull requests) should send a name back if it doesn't pass the "would a judge understand this?" test.
+
+---
+
+## 9. Team rules for code
 
 1. **Work on a branch**, not `main`. Name it after what you're doing. Pull before you start, push when done.
 2. **No magic numbers.** Numbers go in `Constants.java` with a comment saying what it is and its units.
@@ -172,4 +235,5 @@ Plug the USB stick into a laptop and open the `.wpilog` in AdvantageScope. See `
 4. **Check CAN IDs in Tuner X** before blaming the code. A wrong ID was behind a whole week of 2026 bugs.
 5. **Test in simulation first**, then on the robot on blocks (wheels off the ground), then on the floor.
 6. **Something weird happened? Check the log before changing code.** (See LOGGING.md.)
-7. **Don't edit generated files** (`TunerConstants.java`, `LimelightHelpers.java`) unless you have to. If you do, comment why.
+7. **Professional, descriptive names only** (see section 8). Code is reviewed by judges, alumni and other teams.
+8. **Don't edit generated files** (`TunerConstants.java`, `LimelightHelpers.java`) unless you have to. If you do, comment why.

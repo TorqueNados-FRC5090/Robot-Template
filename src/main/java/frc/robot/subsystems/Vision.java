@@ -2,6 +2,9 @@ package frc.robot.subsystems;
 
 import static frc.robot.Constants.VisionConstants.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.util.Units;
@@ -12,6 +15,8 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
 import frc.robot.LimelightHelpers.PoseEstimate;
 import frc.robot.RobotLog;
+import frc.robot.Constants.VisionConstants.Camera;
+import frc.robot.Constants.VisionConstants.CameraPose;
 
 /**
  * WHAT THIS FILE IS: the vision subsystem. The Limelight sees AprilTags (the square barcodes on the field), works out
@@ -26,27 +31,75 @@ import frc.robot.RobotLog;
  * Disabled: MegaTag1 with 2+ tags is allowed to fix the heading too, so MegaTag2 starts the match
  * with a correct heading even if the robot was placed crooked.
  * <p>
- * Cameras are listed in {@code Constants.VisionConstants.kCameraNames}. Each Limelight also needs its
- * camera position set on its web page (Settings, "Robot Space Pose") or the poses will be wrong.
+ * Cameras are listed in {@code Constants.VisionConstants.kCameras}. Any number of Limelights works: each one is
+ * handled the same way and adds its own position measurement. Each camera's mount position must be correct (set in
+ * code with configuredInCode, or on its web page) or its positions will be wrong.
+ * <p>
+ * Dashboard per camera: Vision/&lt;name&gt;/Connected, Tags seen, Correction (m), Heading disagreement (deg).
  */
 public class Vision extends SubsystemBase {
+    /** How often to re-send the in-code camera settings while disabled, seconds (in case a Limelight rebooted) */
+    private static final double kResendConfigSeconds = 1.0;
+
     private final CommandSwerveDrivetrain m_drivetrain;
+    private final double m_createdTime = Timer.getFPGATimestamp();
     private double m_lastTagTime = 0.0;
+    private double m_lastConfigSendTime = 0.0;
+    /** Last heartbeat number from each camera, and when it last changed. Used to tell if a camera is connected. */
+    private final Map<String, Double> m_lastHeartbeat = new HashMap<>();
+    private final Map<String, Double> m_lastHeartbeatChange = new HashMap<>();
 
     public Vision(CommandSwerveDrivetrain drivetrain) {
         m_drivetrain = drivetrain;
         // Dashboard switch: false = ignore the cameras completely (pure wheel odometry)
         SmartDashboard.putBoolean("Vision/Use camera", true);
+        sendCameraConfigs();
     }
 
     @Override
     public void periodic() {
-        if (SmartDashboard.getBoolean("Vision/Use camera", true)) {
-            for (String camera : kCameraNames) {
-                updateCamera(camera);
+        double now = Timer.getFPGATimestamp();
+        // Settings sent from code are kept by NetworkTables, but re-send while disabled in case a camera rebooted
+        if (DriverStation.isDisabled() && now - m_lastConfigSendTime > kResendConfigSeconds) {
+            sendCameraConfigs();
+        }
+
+        for (Camera camera : kCameras) {
+            checkConnected(camera.name(), now);
+            if (SmartDashboard.getBoolean("Vision/Use camera", true)) {
+                updateCamera(camera.name());
             }
         }
-        SmartDashboard.putNumber("Vision/Seconds since last tag", Timer.getFPGATimestamp() - m_lastTagTime);
+        SmartDashboard.putNumber("Vision/Seconds since last tag", now - m_lastTagTime);
+    }
+
+    /** Sends the mount position and pipeline of every camera set up with configuredInCode */
+    private void sendCameraConfigs() {
+        m_lastConfigSendTime = Timer.getFPGATimestamp();
+        for (Camera camera : kCameras) {
+            if (camera.pipeline() != null) {
+                LimelightHelpers.setPipelineIndex(camera.name(), camera.pipeline());
+            }
+            CameraPose pose = camera.pose();
+            if (pose != null) {
+                LimelightHelpers.setCameraPose_RobotSpace(camera.name(),
+                    pose.forwardM(), pose.sideM(), pose.upM(), pose.rollDeg(), pose.pitchDeg(), pose.yawDeg());
+            }
+        }
+    }
+
+    /** A Limelight's "hb" (heartbeat) number goes up every frame. If it stops changing, the camera is gone. */
+    private void checkConnected(String camera, double now) {
+        double heartbeat = LimelightHelpers.getLimelightNTDouble(camera, "hb");
+        if (!m_lastHeartbeat.containsKey(camera) || heartbeat != m_lastHeartbeat.get(camera)) {
+            m_lastHeartbeat.put(camera, heartbeat);
+            m_lastHeartbeatChange.put(camera, now);
+        }
+        boolean connected = heartbeat != 0 && now - m_lastHeartbeatChange.get(camera) < kHeartbeatTimeoutSeconds;
+        SmartDashboard.putBoolean("Vision/" + camera + "/Connected", connected);
+        if (now - m_createdTime > kBootGraceSeconds) {
+            RobotLog.eventOnRise("limelight " + camera, !connected, "LIMELIGHT DISCONNECTED: " + camera);
+        }
     }
 
     /** @return Whether any camera has given a pose in the last {@code seconds} seconds. */
