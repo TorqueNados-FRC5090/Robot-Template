@@ -1,63 +1,112 @@
+// Copyright (c) FIRST and other WPILib contributors.
+// Open Source Software; you can modify and/or share it under the terms of
+// the WPILib BSD license file in the root directory of this project.
+// TorqueNados - FRC 5090
+
 package frc.robot;
 
-// Import constants
-import static frc.robot.Constants.ControllerPorts.*;
+import static frc.robot.Constants.DriveConstants.kMaxAngularRate;
+import static frc.robot.Constants.DriveConstants.kMaxSpeed;
 
-// Subsystem Imports
-import frc.robot.subsystems.drivetrain.SwerveDrivetrain;
+import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
+import com.ctre.phoenix6.swerve.SwerveRequest;
 
-// Command imports
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.commands.AutonContainer;
-import frc.robot.commands.SwerveDriveCommand;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.DriverStation;
-
-// Other imports
+import edu.wpi.first.wpilibj.GenericHID.RumbleType;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import frc.robot.Constants.OperatorConstants;
+import frc.robot.commands.AutonContainer;
+import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.CommandSwerveDrivetrain;
+import frc.robot.subsystems.Vision;
 
 public class RobotContainer {
-    private final CommandXboxController driverController = new CommandXboxController(DRIVER_PORT);
-    private final CommandXboxController operatorController = new CommandXboxController(OPERATOR_PORT);
+    // --- CONTROLLERS ---
+    private final CommandXboxController driver = new CommandXboxController(OperatorConstants.kDriverPort);
 
-    public final SwerveDrivetrain drivetrain = new SwerveDrivetrain();
+    // --- SUBSYSTEMS ---
+    public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+    public final Vision vision = new Vision(drivetrain);
 
+    // --- SWERVE REQUESTS ---
+    // Field-centric: pushing the stick away from you always drives away from you, whichever way the robot faces.
+    private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
+        .withDeadband(kMaxSpeed * OperatorConstants.kDeadband)
+        .withRotationalDeadband(kMaxAngularRate * OperatorConstants.kDeadband)
+        .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+    private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
+    private final SwerveRequest.Idle idle = new SwerveRequest.Idle();
+
+    private final Telemetry logger = new Telemetry(kMaxSpeed);
+
+    // --- AUTON ---
+    // Must be made AFTER the subsystems, since it hands them to PathPlanner
     private final AutonContainer auton = new AutonContainer(this);
     private final SendableChooser<Command> autonChooser = auton.buildAutonChooser();
 
-    /** Constructs a RobotContainer */
+    private double m_brownoutRumble = 0.0;
+
+    // This is the Constructor. It runs once when the robot boots up.
     public RobotContainer() {
         SmartDashboard.putData("Auton Selector", autonChooser);
-
-        setDriverControls();
-        setOperatorControls();
+        configureBindings();
     }
 
-    
-    /** Configures a set of control bindings for the robot's driver */
-    private void setDriverControls() {
-        // Drives the robot with the joysticks
-        drivetrain.setDefaultCommand(new SwerveDriveCommand(drivetrain, 
-        () -> driverController.getLeftX(),
-        () -> driverController.getLeftY(),
-        () -> driverController.getRightX()));
+    /** @return Whether the robot is on the red alliance or not. */
+    public boolean onRedAlliance() {
+        return DriverStation.getAlliance().orElse(DriverStation.Alliance.Blue) == DriverStation.Alliance.Red;
     }
 
-    /** Configures a set of control bindings for the robot's operator */
-    private void setOperatorControls() {
-        // Runs the auton command as an example binding
-        operatorController.a().whileTrue(getAutonomousCommand());
-    }
-        
-    
-    /** @return Whether the robot is on the red alliance or not */
-    public boolean onRedAlliance() { 
-        return DriverStation.getAlliance().get().equals(DriverStation.Alliance.Red);
+    // This wires the physical Xbox controller to the robot's commands.
+    private void configureBindings() {
+        // DRIVE: left stick moves, right stick turns. Hold the right trigger for slow mode.
+        drivetrain.setDefaultCommand(
+            drivetrain.applyRequest(() -> {
+                double multiplier = driver.getRightTriggerAxis() > 0.5 ? OperatorConstants.kSlowModeMultiplier : 1.0;
+                return drive.withVelocityX(-driver.getLeftY() * kMaxSpeed * multiplier)
+                            .withVelocityY(-driver.getLeftX() * kMaxSpeed * multiplier)
+                            .withRotationalRate(-driver.getRightX() * kMaxAngularRate * multiplier);
+            })
+        );
+
+        // Let the wheels coast to a stop while disabled
+        RobotModeTriggers.disabled().whileTrue(drivetrain.applyRequest(() -> idle).ignoringDisable(true));
+
+        // X: lock the wheels in an X so the robot is hard to push
+        driver.x().whileTrue(drivetrain.applyRequest(() -> brake));
+        // Start (menu): reset field-centric "forward" to the way the robot is facing right now
+        driver.start().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+
+        drivetrain.registerTelemetry(logger::telemeterize);
     }
 
-    /** Use this to pass the autonomous command to the main {@link Robot} class. */
+    // The FMS calls this right before Auto starts to ask what sequence to run.
     public Command getAutonomousCommand() {
         return autonChooser.getSelected();
+    }
+
+    /** Rumbles the driver controller harder the closer the battery gets to browning out. Call every loop. */
+    public void updateBrownoutRumble() {
+        double target = 0.0;
+        if (DriverStation.isEnabled()) {
+            if (RobotController.isBrownedOut()) {
+                target = 1.0;
+            } else {
+                double volts = RobotController.getBatteryVoltage();
+                double brownoutVolts = RobotController.getBrownoutVoltage();
+                target = MathUtil.clamp(
+                    (OperatorConstants.kRumbleStartVolts - volts) / (OperatorConstants.kRumbleStartVolts - brownoutVolts),
+                    0.0, 1.0);
+            }
+        }
+        m_brownoutRumble = Math.max(target, m_brownoutRumble - OperatorConstants.kRumbleDecayPerLoop);
+        driver.getHID().setRumble(RumbleType.kBothRumble, m_brownoutRumble);
+        SmartDashboard.putNumber("Brownout Rumble", m_brownoutRumble);
     }
 }
