@@ -11,6 +11,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
 import frc.robot.LimelightHelpers.PoseEstimate;
+import frc.robot.RobotLog;
 
 /**
  * Feeds every Limelight's AprilTag pose into the drivetrain's pose estimator.
@@ -83,6 +84,8 @@ public class Vision extends SubsystemBase {
      *  tracking well on its own. Big = odometry drifts when it can't see tags (wheel size, gearing, or gyro). */
     private void recordCorrection(String camera, Pose2d odometryPose, PoseEstimate estimate) {
         m_lastTagTime = Timer.getFPGATimestamp();
+        // Drawn on the field in AdvantageScope; compare with DriveState/Pose to see odometry drift
+        RobotLog.pose("Vision/" + camera, estimate.pose);
         SmartDashboard.putNumber("Vision/" + camera + "/Tags seen", estimate.tagCount);
         SmartDashboard.putNumber("Vision/" + camera + "/Correction (m)",
             odometryPose.getTranslation().getDistance(estimate.pose.getTranslation()));

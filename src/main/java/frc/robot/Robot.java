@@ -29,6 +29,8 @@ public class Robot extends TimedRobot {
         .withJoystickReplay();
 
     public Robot() {
+        // DataLog + CTRE SignalLogger + power/CAN/command/event logs (USB stick in the RIO). Must be first.
+        RobotLog.start(Constants.kDriveCANBus);
         m_robotContainer = new RobotContainer();
         SmartDashboard.putString("Code Version", readCodeVersion());
     }
@@ -49,6 +51,15 @@ public class Robot extends TimedRobot {
         // Runs every subsystem's periodic() (including Vision) and every scheduled command
         CommandScheduler.getInstance().run();
         m_robotContainer.updateBrownoutRumble();
+        RobotLog.periodic();
+    }
+
+    /** One line at the start of auto and teleop, so every log says which match, alliance and auto it was. */
+    private void logMatchStart(String phase) {
+        RobotLog.event(String.format("%s START | %s match %d | %s alliance | auto: %s",
+            phase, DriverStation.getMatchType(), DriverStation.getMatchNumber(),
+            DriverStation.getAlliance().map(Enum::name).orElse("unknown"),
+            m_autonomousCommand != null ? m_autonomousCommand.getName() : "none"));
     }
 
     @Override
@@ -63,6 +74,7 @@ public class Robot extends TimedRobot {
     @Override
     public void autonomousInit() {
         m_autonomousCommand = m_robotContainer.getAutonomousCommand();
+        logMatchStart("AUTO");
         if (m_autonomousCommand != null) {
             CommandScheduler.getInstance().schedule(m_autonomousCommand);
         }
@@ -76,6 +88,7 @@ public class Robot extends TimedRobot {
 
     @Override
     public void teleopInit() {
+        logMatchStart("TELEOP");
         if (m_autonomousCommand != null) {
             CommandScheduler.getInstance().cancel(m_autonomousCommand);
         }

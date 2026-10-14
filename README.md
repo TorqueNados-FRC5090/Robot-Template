@@ -9,6 +9,7 @@ Built from the drivetrain/vision code on Hephaestus (`goonettes` branch), with t
 | Swerve drive (Phoenix 6) | `generated/TunerConstants.java`, `subsystems/CommandSwerveDrivetrain.java` | Currently Hephaestus's drivetrain (SDS MK5n R3, CANivore "Jarvis", Pigeon ID 0). **For a new robot, regenerate TunerConstants with Tuner X.** |
 | Vision (Limelight) | `subsystems/Vision.java`, `LimelightHelpers.java` (v1.14, needs LLOS 2026+) | MegaTag2 while enabled (X/Y only, heading from the Pigeon). MegaTag1 with 2+ tags while disabled to fix the starting heading. Camera names in `Constants.VisionConstants.kCameraNames`. |
 | Autos (PathPlanner) | `commands/AutonContainer.java`, `deploy/pathplanner/` | Example "Drive Forward" auto. Add autos to the chooser in `buildAutonChooser()`, register robot actions in `registerNamedCommands()`. |
+| Logging | `RobotLog.java`, [LOGGING.md](LOGGING.md) | Everything to the USB stick: dashboard values, joysticks, commands, events, power, CAN, CTRE devices. LOGGING.md has what to log each season and why. |
 | Constants | `Constants.java` | Controller, drive speeds, PathPlanner PID + fallback config, vision trust. |
 | Wrappers | `wrappers/` | LimitSwitch, LaserDetector, DigitalLED (plain WPILib). |
 

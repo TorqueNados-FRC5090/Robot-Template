@@ -5,6 +5,7 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.pathplanner.lib.util.PathPlannerLogging;
 
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -12,6 +13,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.RobotContainer;
+import frc.robot.RobotLog;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 
 /** A container that stores various procedures for the autonomous portion of the game */
@@ -36,6 +38,10 @@ public class AutonContainer {
             config = AutoConstants.kFallbackConfig;
         }
 
+        // Logged so AdvantageScope can overlay the planned path / target pose on the actual pose
+        PathPlannerLogging.setLogTargetPoseCallback(pose -> RobotLog.pose("Auto target", pose));
+        PathPlannerLogging.setLogActivePathCallback(poses -> RobotLog.poses("Auto path", poses));
+
         AutoBuilder.configure(
             drivetrain::getPose,
             drivetrain::resetPose,
@@ -54,9 +60,14 @@ public class AutonContainer {
      * The name here must match the name typed into the PathPlanner app exactly.
      */
     private void registerNamedCommands() {
-        NamedCommands.registerCommand("Do Nothing", doNothing());
+        register("Do Nothing", doNothing());
         // Lock the wheels in an X at the end of an auto so we don't get pushed
-        NamedCommands.registerCommand("X Brake", drivetrain.applyRequest(() -> new SwerveRequest.SwerveDriveBrake()).withTimeout(0.5));
+        register("X Brake", drivetrain.applyRequest(() -> new SwerveRequest.SwerveDriveBrake()).withTimeout(0.5));
+    }
+
+    /** Registers a named command and logs an event each time an auto runs it */
+    private void register(String name, Command command) {
+        NamedCommands.registerCommand(name, command.beforeStarting(() -> RobotLog.event("AUTO named command: " + name)));
     }
 
     public SendableChooser<Command> buildAutonChooser() {
@@ -69,6 +80,6 @@ public class AutonContainer {
 
     /** Auton that does nothing */
     public Command doNothing() {
-        return Commands.none();
+        return Commands.none().withName("Do Nothing");
     }
 }

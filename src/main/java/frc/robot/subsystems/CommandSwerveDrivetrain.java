@@ -22,11 +22,13 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.RobotLog;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 
 /**
@@ -250,6 +252,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         // If Connected is false or Yaw doesn't change when the robot turns, the swerve has no heading
         SmartDashboard.putBoolean("Gyro/Connected", getPigeon2().isConnected());
         SmartDashboard.putNumber("Gyro/Yaw (deg)", getPigeon2().getYaw().getValueAsDouble());
+        logDisconnects();
         /*
          * Periodically try to apply the operator perspective.
          * If we haven't applied the operator perspective before, then we should apply it regardless of DS state.
@@ -272,6 +275,29 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         m_field.setRobotPose(getPose());
         SmartDashboard.putData("Field", m_field);
 
+    }
+
+    private static final String[] kModuleNames = { "Front left", "Front right", "Back left", "Back right" };
+
+    /** Devices take a moment to report in after the code starts; don't call them disconnected before then */
+    private static final double kConnectGraceSeconds = 5.0;
+    private final double m_createdTime = Timer.getFPGATimestamp();
+
+    /** Logs an event the moment any drivetrain CAN device stops talking (wrong ID, loose wire, dead bus). */
+    private void logDisconnects() {
+        if (Utils.isSimulation() || Timer.getFPGATimestamp() - m_createdTime < kConnectGraceSeconds) {
+            return;
+        }
+        RobotLog.eventOnRise("gyro", !getPigeon2().isConnected(), "CAN DISCONNECTED: Pigeon");
+        for (int i = 0; i < getModules().length; i++) {
+            var module = getModule(i);
+            RobotLog.eventOnRise(kModuleNames[i] + " drive", !module.getDriveMotor().isConnected(),
+                "CAN DISCONNECTED: " + kModuleNames[i] + " drive motor");
+            RobotLog.eventOnRise(kModuleNames[i] + " steer", !module.getSteerMotor().isConnected(),
+                "CAN DISCONNECTED: " + kModuleNames[i] + " steer motor");
+            RobotLog.eventOnRise(kModuleNames[i] + " encoder", !module.getEncoder().isConnected(),
+                "CAN DISCONNECTED: " + kModuleNames[i] + " CANcoder");
+        }
     }
 
     private void startSimThread() {
